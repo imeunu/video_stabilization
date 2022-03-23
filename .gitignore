@@ -1,0 +1,9 @@
+/__pycache__
+/ckpt
+/etc
+/runs
+/UNet/__pycache__
+/gru/__pycache__
+/savehere
+/recurrent_unet
+/opticalflow
