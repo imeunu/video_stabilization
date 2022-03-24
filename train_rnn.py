@@ -6,19 +6,32 @@ import csv
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
 # from torch.utils.tensorboard import SummaryWriter
-# from torchvision import transforms
+from torchvision.models.optical_flow import raft_small
 from tqdm import tqdm
 
-from opticalflow.core.raft import RAFT
 from opticalflow.core.utils.utils import InputPadder
 from rnn.model import RNN
 from rnn.rnn_loader import VideoDataset
 
 
+class InputPadder:
+    """ Pads images such that dimensions are divisible by 8 """
+    def __init__(self, dims, mode='sintel'):
+        self.ht, self.wd = dims[-2:]
+        pad_ht = (((self.ht // 8) + 1) * 8 - self.ht) % 8
+        pad_wd = (((self.wd // 8) + 1) * 8 - self.wd) % 8
+        if mode == 'sintel':
+            self._pad = [pad_wd//2, pad_wd - pad_wd//2, pad_ht//2, pad_ht - pad_ht//2]
+        else:
+            self._pad = [pad_wd//2, pad_wd - pad_wd//2, 0, pad_ht]
+
+    def unpad(self,x):
+        ht, wd = x.shape[-2:]
+        c = [self._pad[2], ht-self._pad[3], self._pad[0], wd-self._pad[1]]
+        return x[..., c[0]:c[1], c[2]:c[3]]
 
 def record_history(path, idx, loss):
     try:
@@ -39,11 +52,9 @@ def load_model(args, device):
     model.to(device)
     return model
 
-def load_optical_flow(args, device):
-    model = RAFT(args)
+def load_optical_flow(device):
+    model = raft_small(pretrained=True)
     model = nn.DataParallel(model)
-    model.load_state_dict(torch.load(args.flow_path))
-    model = model.module
     model.to(device)
     return model.eval()
 
@@ -67,7 +78,7 @@ def train(args):
     model.to(device)
     model = nn.DataParallel(model)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=False)
     torch.save(optimizer.state_dict(), f'{args.ckpt_save}/opt.pth')
 
@@ -80,13 +91,13 @@ def train(args):
     criterion = nn.MSELoss()
     
     if args.flow_loss:
-        optflow = load_optical_flow(args, device)
+        optflow = load_optical_flow(device)
         # flow_loss = 0
-    # flow_target = torch.zeros(args.batch_size,2,
-    #     int(8*np.ceil(args.img_size[0]/8)),int(8*np.ceil(args.img_size[1]/8)))
-    flow_target = torch.zeros([])
+    flow_target_size = (args.batch_size,2,int(8*np.ceil(args.img_size[0]/8)),
+                        int(8*np.ceil(args.img_size[1]/8)))
+    flow_target = torch.zeros(flow_target_size)
     flow_target = flow_target.to(device)
-    padder = InputPadder(args.img_size)
+    padder = InputPadder(flow_target_size)
 
     for epoch in range(args.pth, args.epoch):
         running_loss = 0
@@ -102,38 +113,14 @@ def train(args):
                     if not j:
                         h = torch.zeros(inputx.size(0),20,45,80)
                     output, h = model(inputx[:,j,:,:,:], h)
-                    # print(output)
-                    # print (output.min(), output.max())
-                    # print  ('================')
-                    # print(target[:,j,:,:,:])
-                    # input ('c')
-                    # torch.save(inputx[:,j,:,:,:],'input.pt')
-                    # torch.save(output,'output.pt')
-                    # torch.save(target[:,j,:,:,:],'target.pt')
-                    # sys.exit()
                     loss += criterion(output, target[:,j,:,:,:])
-                    
-                    # print (i)
-                    # a = output
-                    # b = target[:,j,:,:,:]
-                    # c = inputx[:,j,:,:,:]
-                    # print (c.min(), c.max())
-                    # print (a.min(), a.max())
-                    # print (b.min(), b.max())
-                    # print (criterion(a, b)) # 21
-                    # input ('c')
                     if args.flow_loss and not j: # flow_loss and j=0
-                        prev = padder.pad(output)[0]
+                        prev = padder.unpad(output)[0]
                     elif args.flow_loss and j:
-                        # print(f'before: {prev.size()}, {output.size()}')
-                        output = padder.pad(output)[0]
-                        # print(f'after: {prev.size()}, {output.size()}')
-                        flow = optflow(prev, output, iters=5, test_mode=True)
-                        loss += args.lambda_flow * criterion(flow, flow_target)
+                        output = padder.unpad(output)[0]
+                        flow = optflow(prev, output)
+                        loss += args.lambda_flow * criterion(flow[-1], flow_target)
                         prev = output
-                # print (i, loss) # inf
-                # input ('stop to check loss')
-                
                 grad_scaler.scale(loss).backward()
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
@@ -149,9 +136,8 @@ def train(args):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seq_len', type=int, default=12)
-    parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vid_stab/ckpt/woflow')
-    parser.add_argument('--ckpt_save', type=str, default='/home/eunu/vid_stab/ckpt/woflow')
-    parser.add_argument('--flow_path', type=str, default='/home/eunu/vid_stab/opticalflow/models/raft-kitti.pth')
+    parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vid_stab/ckpt/flow')
+    parser.add_argument('--ckpt_save', type=str, default='/home/eunu/vid_stab/ckpt/flow')
     parser.add_argument('--hidden_dim', type=int, default=80)
     parser.add_argument('--ssuuu', type=bool, default=False)
     parser.add_argument('--img_size', default=(180,320))
@@ -159,17 +145,18 @@ def get_args():
 
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--augmentation', type=bool, default=False)
-    parser.add_argument('--lr', type=float, default=1e-5)
+    parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--epoch', type=int, default=500)
-    parser.add_argument('--lambda_flow', type=float, default=1)
+    parser.add_argument('--lambda_flow', type=float, default=0.05)
     parser.add_argument('--flow_loss', type=bool, default=True)
 
-    parser.add_argument('--pth', type=int, default=6)
-    parser.add_argument('--re_train', type=bool, default=False)
-    parser.add_argument('--cuda', type=str, default='2')
+    parser.add_argument('--pth', type=int, default=53)
+    parser.add_argument('--re_train', type=bool, default=True)
+    parser.add_argument('--cuda', type=str, default='1')
     
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = get_args()
+    temp = '1'
     train(args)

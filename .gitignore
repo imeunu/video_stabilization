@@ -7,3 +7,6 @@
 /savehere
 /recurrent_unet
 /opticalflow
+/runs
+./debug.py
+./test_raft.py
