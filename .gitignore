@@ -5,8 +5,8 @@
 /UNet/__pycache__
 /gru/__pycache__
 /savehere
-/recurrent_unet
 /opticalflow
 /runs
-./debug.py
-./test_raft.py
+debug.py
+helloworld.py
+raft_test.py

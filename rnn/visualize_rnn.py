@@ -1,13 +1,11 @@
 import argparse
 import os
-import sys
 
 import cv2
 import h5py
 import numpy as np
 import torch
 import torch.nn as nn
-from tqdm import tqdm
 
 from model import RNN
 
@@ -47,12 +45,9 @@ def visualize(args):
     os.environ["CUDA_VISIBLE_DEVICES"]= args.cuda
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = load_model(args, device)
-    psnr, ssim = 0, 0
     
     with h5py.File(h5_path, 'r') as f:
         unstable = np.array(f['unstable'])
-        stable = np.array(f['stable'])
-        num_frames = np.array(f['frame']).item()
         unstable = to_tensor(unstable).to(device)
 
     with torch.no_grad():
@@ -62,24 +57,20 @@ def visualize(args):
             output, h = model(unstable[i].unsqueeze(0), h)
             output = postprocess(output)
             save_frame(args, output, i)
-            # psnr += cv2.PSNR(output, stable[i])
-            # ssim += SSIM(output, stable[i])
-    
-    # print(f'Mean PSNR: {psnr/num_frames}, Mean SSIM: {ssim/num_frames}')
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seq_len', type=int, default=12)
-    parser.add_argument('--cuda', type=str, default='1')
+    parser.add_argument('--cuda', type=str, default='2')
     parser.add_argument('--plot_path', type=str, default='/home/eunu/vid_stab/savehere')
     parser.add_argument('--hidden_dim', type=int, default=80)
-    parser.add_argument('--width', type=int, default=1280)
-    parser.add_argument('--height', type=int, default=720)
+    parser.add_argument('--width', type=int, default=320)
+    parser.add_argument('--height', type=int, default=180)
     parser.add_argument('--ssuuu', type=bool, default=False)
 
-    parser.add_argument('--pth', type=int, default=420)
+    parser.add_argument('--pth', type=int, default=104)
     parser.add_argument('--video_number', type=int, default=58)
-    parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vid_stab/ckpt/L12')
+    parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vid_stab/ckpt/flow')
     
     return parser.parse_args()
 

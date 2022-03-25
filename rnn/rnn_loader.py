@@ -1,4 +1,5 @@
 import os
+import sys
 
 import h5py
 import numpy as np
@@ -10,7 +11,6 @@ class VideoDataset(Dataset):
     def __init__(self, args, train=True):
         super().__init__()
         self.seq_len = args.seq_len
-        self.ssuuu = args.ssuuu
         if args.dataset == 'ds':
             h5_path = '/hdd/DeepStab/h5'
             if not train: dataset = sorted(os.listdir(h5_path))[-8:]
@@ -45,18 +45,9 @@ class VideoDataset(Dataset):
         return self.get_item(vid_idx, idx)
     
     def get_item(self, vid_idx, idx):
-        if self.ssuuu:
-            s = self.to_tensor(
-                    self.stable[vid_idx][idx : idx+n]
-            )
-            u = self.to_tensor(
-                    self.unstable[vid_idx][idx+n : idx+self.seq_len]
-            )
-            x = torch.cat([s,u], dim=0)
-        else:
-            x = self.to_tensor(self.unstable[vid_idx][idx : idx+self.seq_len])
-            x = torch.cat(torch.tensor_split(x, x.size(0)), dim=0)
-            # x: size (1,seq_len,3,72,128)
+        x = self.to_tensor(self.unstable[vid_idx][idx : idx+self.seq_len])
+        x = torch.cat(torch.tensor_split(x, x.size(0)), dim=0)
+        # x: size (1,seq_len,3,72,128)
 
         target = self.to_tensor(
             self.stable[vid_idx][idx : idx+self.seq_len]
