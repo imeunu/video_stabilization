@@ -3,6 +3,10 @@ import os
 import cv2
 import numpy as np
 
+'''
+Create a video with inferenced frame
+'''
+
 if __name__ == '__main__':
     path = '/home/eunu/vid_stab/ckpt/test1'
     video = []

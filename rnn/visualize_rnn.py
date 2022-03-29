@@ -44,7 +44,7 @@ def visualize(args):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"]= args.cuda
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = load_model(args, device)
+    model = load_model(args, device).eval()
     
     with h5py.File(h5_path, 'r') as f:
         unstable = np.array(f['unstable'])
@@ -66,10 +66,9 @@ def get_args():
     parser.add_argument('--hidden_dim', type=int, default=80)
     parser.add_argument('--width', type=int, default=320)
     parser.add_argument('--height', type=int, default=180)
-    parser.add_argument('--ssuuu', type=bool, default=False)
 
-    parser.add_argument('--pth', type=int, default=104)
     parser.add_argument('--video_number', type=int, default=58)
+    parser.add_argument('--pth', type=int, default=109)
     parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vid_stab/ckpt/flow')
     
     return parser.parse_args()

@@ -1,5 +1,4 @@
 import os
-import sys
 
 import h5py
 import numpy as np
@@ -46,12 +45,10 @@ class VideoDataset(Dataset):
     
     def get_item(self, vid_idx, idx):
         x = self.to_tensor(self.unstable[vid_idx][idx : idx+self.seq_len])
-        x = torch.cat(torch.tensor_split(x, x.size(0)), dim=0)
-        # x: size (1,seq_len,3,72,128)
+        # size of x: (batch_size, seq_len, ch, ht, wd)
 
-        target = self.to_tensor(
-            self.stable[vid_idx][idx : idx+self.seq_len]
-        ) # target: size (1,seq_len,3,72,128)
+        target = self.to_tensor(self.stable[vid_idx][idx : idx+self.seq_len])
+        # size of target: (batch_size, seq_len, ch, ht, wd)
         
         return (x, target)
     

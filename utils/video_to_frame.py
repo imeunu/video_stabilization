@@ -3,6 +3,10 @@ import os
 import cv2
 
 
+'''
+Divide the video into frames
+'''
+
 def walk(folder):
     for dirpath, dirs, files in os.walk(folder):
         for filename in files:

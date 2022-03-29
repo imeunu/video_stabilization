@@ -7,6 +7,4 @@
 /savehere
 /opticalflow
 /runs
-debug.py
-helloworld.py
-raft_test.py
+debug.ipynb

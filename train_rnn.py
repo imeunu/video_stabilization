@@ -38,26 +38,25 @@ def train(args):
     model.to(device)
     model = nn.DataParallel(model)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.8)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=200, gamma=0.5)
     grad_scaler = torch.cuda.amp.GradScaler(enabled=False)
     torch.save(optimizer.state_dict(), f'{args.ckpt_save}/opt.pth')
 
     if args.re_train:
         model = load_model(args, device)
-        for _ in range(args.pth):
-            scheduler.step()
+        # for _ in range(args.pth):
+        #     scheduler.step()
     else:
         args.pth = 0
     criterion = nn.MSELoss()
     
     if args.flow_loss:
-        optflow = utils.load_optical_flow(device)
-        flow_target_size = (args.batch_size, 2, args.img_size[0],
-                            args.img_size[1])
-        flow_target = torch.zeros(flow_target_size)
+        optflow = nn.DataParallel(utils.load_optical_flow(device))
+        flow_target_size = (args.batch_size, 2) + args.img_size
+        # flow_target = torch.zeros(flow_target_size)
         padder = utils.InputPadder(flow_target_size)
-        flow_target = padder.unpad(flow_target)
-        flow_target = flow_target.to(device)
+        # flow_target = padder.unpad(flow_target)
+        # flow_target = flow_target.to(device)
 
     for epoch in range(args.pth, args.epoch):
         running_loss = 0
@@ -73,13 +72,15 @@ def train(args):
                     if not j:
                         h = torch.zeros(inputx.size(0),20,45,80)
                     output, h = model(inputx[:,j,:,:,:], h)
-                    loss += criterion(output, target[:,j,:,:,:])
+                    loss += args.lambda_flow * criterion(output, target[:,j,:,:,:])
                     if args.flow_loss and not j: # flow_loss and j=0
                         prev = padder.unpad(output)
                     elif args.flow_loss and j:
                         output = padder.unpad(output)
                         flow = optflow(prev, output)
-                        loss += args.lambda_flow * criterion(flow[-1], flow_target)
+                        flow_target = optflow(padder.unpad(target[:,j-1,:,:,:]),
+                                            padder.unpad(target[:,j,:,:,:])) # Use GT flow
+                        loss += criterion(flow[-1], flow_target[-1])
                         prev = output
                 grad_scaler.scale(loss).backward()
                 grad_scaler.step(optimizer)
@@ -96,21 +97,22 @@ def train(args):
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--seq_len', type=int, default=12)
-    parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vid_stab/ckpt/finetune')
-    parser.add_argument('--ckpt_save', type=str, default='/home/eunu/vid_stab/ckpt/finetune')
+    parser.add_argument('--ckpt_read', type=str, default='/home/eunu/vidstab/ckpt/finetune')
+    parser.add_argument('--ckpt_save', type=str, default='/home/eunu/vidstab/ckpt/flow_gt')
     parser.add_argument('--hidden_dim', type=int, default=80)
     parser.add_argument('--img_size', default=(180,320))
     parser.add_argument('--dataset', type=str, default='vr')
 
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--augmentation', type=bool, default=False)
+    
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--epoch', type=int, default=500)
     parser.add_argument('--lambda_flow', type=float, default=0.05)
-    parser.add_argument('--flow_loss', type=bool, default=False)
+    parser.add_argument('--flow_loss', type=bool, default=True)
 
-    parser.add_argument('--pth', type=int, default=21)
-    parser.add_argument('--re_train', type=bool, default=False)
+    parser.add_argument('--pth', type=int, default=72)
+    parser.add_argument('--re_train', type=bool, default=True)
     parser.add_argument('--cuda', type=str, default='1')
     
     return parser.parse_args()

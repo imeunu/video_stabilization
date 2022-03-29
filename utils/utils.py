@@ -1,6 +1,5 @@
 import csv
 
-import torch
 import torch.nn as nn
 from torchvision.models.optical_flow import raft_small as raft
 
