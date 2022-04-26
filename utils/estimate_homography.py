@@ -58,7 +58,7 @@ def decompose_H(H):
     n = (z1 * v_3 + z3 * v_1) / (z1 - z3)
     Itnt = np.identity(3) + np.outer(t.transpose(), n)
     R = np.linalg.inv(Itnt)
-    return R, t
+    return (R, t)
 
 def get_z(l1, l2):
     root = np.sqrt(1 + 4 * l1 * l2 / (l1 - l2) ** 2)
