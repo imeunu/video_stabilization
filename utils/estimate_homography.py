@@ -53,11 +53,10 @@ def decompose_H(H):
     v1, _, v3 = (u + vh) / 2
     l1, _, l3 = sorted(np.sqrt(s), reverse=True)
     z1, z3 = get_z(l1, l3)
-    v_1, v_3 = get_v(z1,v1,l1,l3), get_v(z3,v3,l1,l3)
-    t = v_1 + v_3 / (z1 - z3)
-    n = (z1 * v_3 + z3 * v_1) / (z1 - z3)
+    v_1, v_3 = get_v(z1, v1, l1, l3), get_v(z3, v3, l1, l3)
+    t, n = get_t_n(v_1, v_3, z1, z3)
     Itnt = np.identity(3) + np.outer(t.transpose(), n)
-    R = np.linalg.inv(Itnt)
+    R = np.matmul(H, np.linalg.inv(Itnt))
     return (R, t)
 
 def get_z(l1, l2):
@@ -70,8 +69,25 @@ def get_v(zeta, v, l1, l2):
     norm = np.sqrt(v_norm)
     return (norm * v)
 
+def get_t_n(v_1, v_3, z1, z3):
+    # t, n can be either positive or negative
+    # Also, it can be v_1 - v_3
+    t = v_1 + v_3 / (z1 - z3)
+    n = (z1 * v_3 + z3 * v_1) / (z1 - z3)
+    return (t, n)
+
+def new_solution(H):
+    S = np.matmul(H.transpose(), H) - np.identity(3)
+
+    return S
+
+def det_nm(M,n,m):
+    n,m = n-1, m-1
+    return (M[n][m] ** 2 - M[n][m] * M[m][n])
+
 if __name__ == '__main__':
     stable, unstable = get_toy()
     # print(find_camera_distance(stable, unstable))
     h = find_H(stable[0], unstable[0])
-    print(decompose_H(h))
+    print(h)
+    print(new_solution(h))
