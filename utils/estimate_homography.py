@@ -6,16 +6,20 @@ import numpy as np
 
 def get_toy():
     '''Assign frame pairs to variables'''
-    stable, unstable, root = [], [], '/Users/eunu/Desktop/code/video_stabilization/toy/consective'
+    root = '/Users/eunu/Desktop/code/video_stabilization/toy/consecutive'
     # adjust the root variable with your environment
     for i in ['stable', 'unstable']:
-        for j in os.listdir(f'{root}/{i}'):
-            img = cv2.imread(f'{root}/{i}/{j}')
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            if i == 'stable':
-                stable.append(img)
-            else:
-                unstable.append(img)
+        # for j in os.listdir(f'{root}/{i}'):
+        #     img = cv2.imread(f'{root}/{i}/{j}')
+        #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        #     if i == 'stable':
+        #         stable.append(img)
+        #     else:
+        #         unstable.append(img)
+        img = cv2.imread(f'{root}/{i}/0000.jpg')
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        if i == 'stable': stable = img
+        else: unstable = img
     return (stable, unstable)
 
 def find_H(f1, f2):
@@ -77,17 +81,22 @@ def get_t_n(v_1, v_3, z1, z3):
     return (t, n)
 
 def new_solution(H):
-    S = np.matmul(H.transpose(), H) - np.identity(3)
+    S = np.matmul(H.transpose(), H)
+    Ms = -mat_minor(S,1,1)
+    return S, np.linalg.det(S)
 
-    return S
+def mat_minor(M,m,n):
+    M = np.delete(M,m-1,0)
+    M = np.delete(M,n-1,1)
+    return (np.linalg.det(M))
 
-def det_nm(M,n,m):
-    n,m = n-1, m-1
-    return (M[n][m] ** 2 - M[n][m] * M[m][n])
+def sign(x):
+    if x>=0: return 1
+    else: return -1
 
 if __name__ == '__main__':
     stable, unstable = get_toy()
     # print(find_camera_distance(stable, unstable))
-    h = find_H(stable[0], unstable[0])
+    h = find_H(stable, unstable)
     print(h)
     print(new_solution(h))
