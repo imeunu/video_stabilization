@@ -91,7 +91,7 @@ def mat_minor(M,m,n):
     return (np.linalg.det(M))
 
 def sign(x):
-    if x>=0: return 1
+    if x >= 0: return 1
     else: return -1
 
 if __name__ == '__main__':
