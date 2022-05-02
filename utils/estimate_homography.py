@@ -22,6 +22,21 @@ def get_toy(n=0):
         else: unstable = img
     return (stable, unstable)
 
+def mat_minor(M, m, n):
+    M = np.delete(M, m, 0)
+    M = np.delete(M, n, 1)
+    return (np.linalg.det(M))
+
+def sign(M, m, n):
+    return (np.sign(mat_minor(M, m, n)))
+
+def normalize(vector):
+    norm = np.linalg.norm(vector)
+    return (vector / norm)
+
+def compute_v(S):
+    return np.sqrt(2 * (1 + np.trace(S)) ** 2 + 1 - np.trace(S*S))
+
 def find_H(f1, f2):
     '''Find homography transformation of two images'''
     # Find feature descriptor with SIFT.
@@ -45,8 +60,45 @@ def find_H(f1, f2):
     H = H / np.median(v)
     return (H)
 
-def compute_t(H):
+def compute_Rtn(H):
+    S = np.matmul(H, H.transpose()) - np.identity(3)
+    # p22 (eq.68)
+    return 
+'''
+    v = compute_v(S)
+    t_norm = 2 + np.trace(S) - v
+    mode = np.argmax(abs(S.diagonal()))
+
+    ta, tb = t_from_S(S, mode, t_norm)
+
+    rho = np.sqrt(2 + np.trace(S) + compute_v(S))
+    n_scale = sign(S, mode, mode) * rho / (2 * t_norm)
+    na, nb = n_scale * (tb - ta), n_scale * (ta - tb)
+
+    Ra, Rb = H - np.outer(ta, na), H - np.outer(tb, nb)
+    return
+
+def t_from_S(S, mode, t_norm):
+    if mode == 0:
+        ta = [S[0][0], S[0][1] + np.sqrt(mat_minor(S, 2, 2)),
+                S[0][2] + sign(S, 1, 2) * mat_minor(S, 1, 1)]
+        tb = [S[0][0], S[0][1] - np.sqrt(mat_minor(S, 2, 2)),
+                S[0][2] + sign(S, 1, 2) * mat_minor(S, 1, 1)]
+    elif mode == 1:
+        ta = [S[0][1] + np.sqrt(mat_minor(S, 2, 2)), S[1][1],
+                S[1][2] - sign(S, 0, 2) * mat_minor(S, 0, 0)]
+        tb = [S[0][1] - np.sqrt(mat_minor(S, 2, 2)), S[1][1],
+                S[1][2] + sign(S, 0, 2) * mat_minor(S, 0, 0)]
+    elif mode == 2:
+        ta = [S[0][2] + sign(S, 0, 2) * np.sqrt(mat_minor(S, 1, 1)),
+                S[1][2] + np.sqrt(S, 0, 0), S[2][2]]
+        tb = [S[0][2] - sign(S, 0, 2) * np.sqrt(mat_minor(S, 1, 1)),
+                S[1][2] - np.sqrt(S, 0, 0), S[2][2]]
     
+    ta, tb = normalize(ta), normalize(tb)
+    ta, tb = t_norm * ta, t_norm * tb
+    return (ta, tb)
+'''
 
 # def find_t(f1, f2):
 #     '''Extract affine translation parameters from H'''
@@ -87,19 +139,9 @@ def compute_t(H):
 #     n = (z1 * v_3 + z3 * v_1) / (z1 - z3)
 #     return (t, n)
 
-def new_solution(H):
-    S = np.matmul(H.transpose(), H)
-    Ms = -mat_minor(S,1,1)
-    return S, np.linalg.det(S)
-
-def mat_minor(M,m,n):
-    M = np.delete(M,m-1,0)
-    M = np.delete(M,n-1,1)
-    return (np.linalg.det(M))
-
 if __name__ == '__main__':
-    stable, unstable = get_toy()
     # print(find_camera_distance(stable, unstable))
-    h = find_H(stable, unstable)
-    print(h)
-    print(new_solution(h))
+    for i in range(4):
+        stable, unstable = get_toy(i)
+        h = find_H(stable, unstable)
+        compute_Rtn(h)
