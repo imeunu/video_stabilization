@@ -56,15 +56,41 @@ def find_H(f1, f2):
     H, status = cv2.findHomography(src, dst, cv2.RANSAC, 5.0)
 
     # Scale the matrix with median eigenvalue
-    _, v, _ = np.linalg.svd(H)
-    H = H / np.median(v)
+    # _, v, _ = np.linalg.svd(H)
+    # H = H / np.median(v)
     return (H)
 
 def compute_Rtn(H):
+    num , R, t, _ = cv2.decomposeHomographyMat(H)
+    for i in range(num):
+        if R[i][2][2] < 0: continue
+        if t[i][0]: continue
+        return (R[i], t[i])
+    return (None)
+
+'''
+def choose_validZ(S):
+    za1 = S[0][1] + np.sqrt(mat_minor(S,2,2)) / S[1][1]
+    zb1 = S[0][1] - np.sqrt(mat_minor(S,2,2)) / S[1][1]
+    za3 = (S[1][2] - sign(S,0,0) * np.sqrt(S,0,0)) / S[1][1]
+    zb3 = (S[1][2] + sign(S,0,0) * np.sqrt(S,0,0)) / S[1][1]
+    aa = 1 + za1 ** 2 + za3 ** 2
+    ab = 1 + zb1 ** 2 + zb3 ** 2
+    b = 2 + np.trace(S)
+    v = np.sqrt(2 * (1 + np.trace(S) ** 2) + 1 - np.trace(S * S))
+    wa = (b - v) / aa
+    wb = (b - v) / ab
+    ya = np.sqrt(wa) * np.array([za1,1,za3])
+    yb = np.sqrt(wb) * np.array([zb1,1,zb3])
+
+def compute_Rtn(H):
     S = np.matmul(H, H.transpose()) - np.identity(3)
+    if not S[1][1] or S[2][2]:
+        raise Exception('s22 and s33 must be different from 0')
+    choose_validZ(S)
     # p22 (eq.68)
     return 
-'''
+
     v = compute_v(S)
     t_norm = 2 + np.trace(S) - v
     mode = np.argmax(abs(S.diagonal()))
@@ -144,4 +170,4 @@ if __name__ == '__main__':
     for i in range(4):
         stable, unstable = get_toy(i)
         h = find_H(stable, unstable)
-        compute_Rtn(h)
+        R, t = compute_Rtn(h)
