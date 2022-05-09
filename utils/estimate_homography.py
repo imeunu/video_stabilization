@@ -1,5 +1,3 @@
-import os
-
 import cv2
 import numpy as np
 
@@ -9,13 +7,6 @@ def get_toy(n=0):
     root = '/Users/eunu/Desktop/code/video_stabilization/toy/consecutive'
     # adjust the root variable with your environment
     for i in ['stable', 'unstable']:
-        # for j in os.listdir(f'{root}/{i}'):
-        #     img = cv2.imread(f'{root}/{i}/{j}')
-        #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        #     if i == 'stable':
-        #         stable.append(img)
-        #     else:
-        #         unstable.append(img)
         img = cv2.imread(f'{root}/{i}/000{n}.jpg')
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         if i == 'stable': stable = img
@@ -27,7 +18,7 @@ def isRotationMatrix(R, error=1e-6):
     shouldBeIdentity = np.dot(Rt, R)
     I = np.identity(3, dtype=R.dtype)
     n = np.linalg.norm(I - shouldBeIdentity)
-    return (R < error)
+    return (n < error)
 
 def find_H(f1, f2, scale=False):
     '''Find homography transformation of two images'''
@@ -68,10 +59,3 @@ def decompose_R(R, error=1e-6):
     y = np.arctan2(-R[2,0], sy)
     z = np.arctan2(R[1,0], R[0,0]) if not singular else 0
     return (x, y, z)
-
-if __name__ == '__main__':
-    stable, unstable = get_toy()
-    h = find_H(stable, unstable)
-    R, t = compute_Rt(h)
-    tx, ty, _ = t
-    alpha, beta, gamma = decompose_R(R)
